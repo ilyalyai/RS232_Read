@@ -6,13 +6,12 @@ namespace ЧтениеRS232
 {
     public partial class Form1 : Form
     {
-        public SerialPort SerialPort = new();
-        public string[] serialPorts;
-        private int num_ports = 0;
+        public SerialPort SerialPort { get; set;}
         public Byte[] data = new byte[8];
 
         public Form1()
         {
+            SerialPort = new();
             InitializeComponent();
         }
 
@@ -25,29 +24,26 @@ namespace ЧтениеRS232
 
         private void button2_Click(object sender, EventArgs e)
         {
-            SerialPort.Close();
             try
             {
-                for (int i = 0; i < num_ports; i++)
-                {
-                    //тут если подключаться к подключенному, то возникала ошибка
-
-                    if (comboBox1.SelectedIndex == i && !SerialPort.IsOpen)
-                    {
-                        SerialPort.PortName = comboBox1.Text;
-                        break;
-                    }
-                }
+                if (SerialPort.IsOpen)
+                    SerialPort.Close();
+                SerialPort.PortName = comboBox1.Text;
                 SerialPort.Open();
-                backgroundWorker1.RunWorkerAsync();
+                if (!backgroundWorker1.IsBusy)
+                    backgroundWorker1.RunWorkerAsync();
 
-                button1.Visible = false;
-                button2.Visible = false;
-                comboBox1.Enabled = false;
+                //button1.Visible = false;
+                //button2.Visible = false;
+                //comboBox1.Enabled = false;
+                label1.Text = $"Подключено к {comboBox1.Text}";
+                label1.Font = new Font(label1.Font, FontStyle.Bold);
+                button2.Text = "Переключиться";
             }
             catch
             {
-                button1.Text = "COM порт не найден!";
+                label1.Font = new Font(label1.Font, FontStyle.Bold);
+                label1.Text = "COM порт не найден!";
                 return;
             }
         }
@@ -59,24 +55,20 @@ namespace ЧтениеRS232
 
         private void UpdatePorts()
         {
-            num_ports = 0;
             try
             {
-                serialPorts = SerialPort.GetPortNames();
-                foreach (string serialPort in serialPorts)
-                {
-                    comboBox1.Items.Add(serialPort);
-                    num_ports++;
-                }
+                comboBox1.Items.Clear();
+                comboBox1.Items.AddRange(SerialPort.GetPortNames());
             }
             catch
             {
-                button1.Text = "COM порт не найден!";
+                label1.Font = new Font(label1.Font, FontStyle.Bold);
+                label1.Text = "COM порт не найден!";
                 return;
             }
         }
 
-        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        private void backgroundWorker1_DoWork(object sender, System.ComponentModel.DoWorkEventArgs e)
         {
             for (; ; )
             {
@@ -85,14 +77,26 @@ namespace ЧтениеRS232
                     int bytesRead = SerialPort.Read(data, 0, 8);
                     var result = Encoding.ASCII.GetString(data, 0, bytesRead);
                     backgroundWorker1.ReportProgress(0, result);
-
+                    if (result.Length == 8)
+                    {
+                        /*var io = SearchForObj(result);
+                        if (io != null)
+                        {
+                            this.Invoke(new MethodInvoker(delegate
+                            {
+                                SerialPort.Close();
+                                Service.UI.OpenInNewTabPage(io, false);
+                                this.Dispose();
+                            }));
+                        }*/
+                    }
                 }
             }
         }
 
         private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            label2.Text = label2.Text + e.UserState;
+            label2.Text += "\n" + e.UserState;
         }
     }
 }
